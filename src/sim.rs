@@ -541,6 +541,31 @@ pub fn run(cfg: &Config, record_trace: bool) -> Result<RunOutput, String> {
     let hold = cfg.metrics.hold_ticks as usize;
     let reference = if cfg.network.partition_enabled { (cfg.network.partition_end as usize).min(horizon) } else { 0 };
     let horizon_f = horizon as f64;
+
+    // Continuous spread diagnostics complement threshold-based convergence time.
+    // Spread is measured across finite honest nodes; post-heal summaries start
+    // at the healing reference tick (inclusive) and exclude ticks with NaN nodes.
+    let spread_values = series.column("spread").map(|v| v.as_slice()).unwrap_or(&[]);
+    let nan_values = series.column("nan_nodes").map(|v| v.as_slice()).unwrap_or(&[]);
+    let final_amplitude_spread = spread_values.last().copied().unwrap_or(f64::NAN);
+    let post_heal_spreads: Vec<f64> = spread_values.iter().enumerate()
+        .filter(|(i, value)| *i >= reference && value.is_finite()
+            && nan_values.get(*i).copied().unwrap_or(1.0) == 0.0)
+        .map(|(_, value)| *value)
+        .collect();
+    let post_heal_amplitude_spread_mean = if post_heal_spreads.is_empty() {
+        f64::NAN
+    } else {
+        post_heal_spreads.iter().sum::<f64>() / post_heal_spreads.len() as f64
+    };
+    let post_heal_amplitude_spread_min = post_heal_spreads.iter().copied()
+        .fold(f64::INFINITY, f64::min);
+    let post_heal_amplitude_spread_min = if post_heal_spreads.is_empty() {
+        f64::NAN
+    } else {
+        post_heal_amplitude_spread_min
+    };
+
     let mut m: BTreeMap<String, f64> = BTreeMap::new();
     let honest: Vec<&Node> = nodes.iter().filter(|x| x.adversary.is_none()).collect();
     let honest_n = honest.len() as f64;
@@ -580,6 +605,9 @@ pub fn run(cfg: &Config, record_trace: bool) -> Result<RunOutput, String> {
             m.insert("convergence_censored".into(), 1.0);
         }
     }
+    m.insert("final_amplitude_spread".into(), final_amplitude_spread);
+    m.insert("post_heal_amplitude_spread_mean".into(), post_heal_amplitude_spread_mean);
+    m.insert("post_heal_amplitude_spread_min".into(), post_heal_amplitude_spread_min);
 
     // Local stability: first tick each honest node entered Stable (never = censored at horizon).
     let stab: Vec<f64> = honest.iter().map(|x| x.first_stable_tick.map(|t| t as f64).unwrap_or(horizon_f)).collect();
