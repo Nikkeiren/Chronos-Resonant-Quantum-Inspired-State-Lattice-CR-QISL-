@@ -6,6 +6,7 @@
 # See docs/ASSUMPTIONS.md for what each one means and how it can bias outcomes.
 
 name = "initial_experiment"
+evidence_assignment_mode = "aligned"
 nodes = 100
 candidates = 2
 max_ticks = 300
