@@ -84,7 +84,7 @@ analysis/{descriptive.csv, paired_tests.csv, report.md}
 ```
 
 Recorded metrics are defined in [`docs/METRICS.md`](docs/METRICS.md): convergence/agreement/stability times
-(right-censored and flagged), divergence before/after healing, decision oscillation, message / byte / drop /
+(right-censored and flagged), divergence before/after healing, amplitude-spread diagnostics (final and post-heal mean/min), decision oscillation, message / byte / drop /
 heartbeat / witness / reconciliation counts, per-node histories. `retransmissions` and `signature_ops` are always
 0 because no retransmission layer and no authentication exist.
 
