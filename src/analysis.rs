@@ -45,6 +45,9 @@ pub const ANALYZED: &[MetricSpec] = &[
         name: "amplitude_convergence_time",
         censor: Censor::Flag("convergence_censored"),
     },
+    MetricSpec { name: "final_amplitude_spread", censor: Censor::None },
+    MetricSpec { name: "post_heal_amplitude_spread_mean", censor: Censor::None },
+    MetricSpec { name: "post_heal_amplitude_spread_min", censor: Censor::None },
     MetricSpec {
         name: "stability_time_median",
         censor: Censor::FractionAtLeast("stability_censored_fraction", 0.5),
