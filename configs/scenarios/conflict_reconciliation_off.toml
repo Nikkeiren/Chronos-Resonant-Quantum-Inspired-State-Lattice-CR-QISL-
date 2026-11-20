@@ -1,0 +1,10 @@
+# Control for conflict_reconciliation: reconciliation boost and reconcile messages disabled
+# (witnesses and CONFLICT_PENDING stay on), to isolate the effect of the reconciliation mechanism.
+name = "conflict_reconciliation_off"
+
+[features]
+reconcile = "off"
+
+[conflict]
+reconcile_hold = 10
+reconcile_timeout = 120

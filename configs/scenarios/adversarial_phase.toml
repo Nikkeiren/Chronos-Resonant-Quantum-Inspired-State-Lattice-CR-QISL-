@@ -1,0 +1,19 @@
+# Omniscient phase attacker (reports the honest mean amplitude with the opposite phase).
+# Only meaningful for variants with phase dynamics; for the others it behaves almost benignly.
+name = "adversarial_phase"
+[network]
+partition_enabled = false
+
+[adversary]
+fraction = 0.15
+behavior = "phase"
+placement = "random"
+target_candidate = 1
+
+[[events]]
+kind = "inject"
+tick = 5
+group = -1
+candidate = 0
+strength = 0.5
+phase = 0.0

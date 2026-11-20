@@ -1,0 +1,14 @@
+# Heavy packet loss (40%), no partition, global evidence at tick 5.
+name = "packet_loss_40"
+
+[network]
+packet_loss = 0.4
+partition_enabled = false
+
+[[events]]
+kind = "inject"
+tick = 5
+group = -1
+candidate = 0
+strength = 0.5
+phase = 0.0

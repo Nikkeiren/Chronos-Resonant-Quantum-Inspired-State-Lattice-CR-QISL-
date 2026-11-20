@@ -1,0 +1,16 @@
+# Baseline network: no loss, no partition. One global piece of evidence for candidate 0 at tick 5.
+name = "baseline"
+
+[network]
+packet_loss = 0.0
+latency_min = 1.0
+latency_max = 3.0
+partition_enabled = false
+
+[[events]]
+kind = "inject"
+tick = 5
+group = -1
+candidate = 0
+strength = 0.5
+phase = 0.0

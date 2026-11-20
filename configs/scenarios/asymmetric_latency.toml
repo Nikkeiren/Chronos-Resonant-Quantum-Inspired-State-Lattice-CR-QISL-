@@ -1,0 +1,7 @@
+# Initial experiment with asymmetric latency: high-id -> low-id messages take 3x longer.
+name = "asymmetric_latency"
+
+[network]
+latency_min = 1.0
+latency_max = 4.0
+asymmetry = 3.0

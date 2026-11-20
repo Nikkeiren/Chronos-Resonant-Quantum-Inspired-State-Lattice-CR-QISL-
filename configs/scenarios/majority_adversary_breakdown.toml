@@ -1,0 +1,20 @@
+# 35% adversaries placed as one connected ball: honest nodes next to the ball see a LOCAL adversarial
+# majority, the case in which the median-based integrity heuristic is expected to fail.
+name = "majority_local_adversary"
+
+[network]
+partition_enabled = false
+
+[adversary]
+fraction = 0.35
+behavior = "amplitude"
+placement = "clustered"
+target_candidate = 1
+
+[[events]]
+kind = "inject"
+tick = 5
+group = -1
+candidate = 0
+strength = 0.5
+phase = 0.0

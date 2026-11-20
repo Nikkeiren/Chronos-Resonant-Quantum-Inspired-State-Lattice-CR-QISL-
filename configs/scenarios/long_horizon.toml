@@ -1,0 +1,4 @@
+# Same as the initial experiment but with a 600-tick horizon, so that strict agreement after healing
+# is censored less often. Compare censoring counts in analysis/report.md with the 300-tick runs.
+name = "long_horizon"
+max_ticks = 600

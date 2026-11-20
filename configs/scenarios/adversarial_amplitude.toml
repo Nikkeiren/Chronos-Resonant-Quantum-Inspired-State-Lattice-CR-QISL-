@@ -1,0 +1,20 @@
+# 15% adversaries forging a 0.95 amplitude for candidate 1 while honest evidence favours candidate 0.
+# No guarantee is claimed either way; adv_target_adoption_final records what happened.
+name = "adversarial_amplitude"
+
+[network]
+partition_enabled = false
+
+[adversary]
+fraction = 0.15
+behavior = "amplitude"
+placement = "random"
+target_candidate = 1
+
+[[events]]
+kind = "inject"
+tick = 5
+group = -1
+candidate = 0
+strength = 0.5
+phase = 0.0

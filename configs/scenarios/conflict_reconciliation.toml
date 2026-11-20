@@ -1,0 +1,6 @@
+# Conflict reconciliation after healing with a more patient release rule.
+name = "conflict_reconciliation"
+
+[conflict]
+reconcile_hold = 10
+reconcile_timeout = 120

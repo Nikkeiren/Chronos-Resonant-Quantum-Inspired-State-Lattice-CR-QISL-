@@ -1,0 +1,21 @@
+# Same attack with receiver-side validation disabled: expect corrupted (non-finite) honest states.
+name = "invalid_numeric_no_validation"
+
+[network]
+partition_enabled = false
+packet_loss = 0.0
+
+[communication]
+validate_inputs = false
+
+[adversary]
+fraction = 0.10
+behavior = "invalid"
+
+[[events]]
+kind = "inject"
+tick = 5
+group = -1
+candidate = 0
+strength = 0.5
+phase = 0.0

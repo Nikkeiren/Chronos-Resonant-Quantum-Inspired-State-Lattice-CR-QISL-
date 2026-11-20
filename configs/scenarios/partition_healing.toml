@@ -1,0 +1,23 @@
+# Longer partition (ticks 40-180) and longer horizon, to study divergence and recovery.
+name = "partition_healing_long"
+max_ticks = 400
+
+[network]
+partition_start = 40
+partition_end = 180
+
+[[events]]
+kind = "inject"
+tick = 41
+group = 0
+candidate = 0
+strength = 0.8
+phase = 0.0
+
+[[events]]
+kind = "inject"
+tick = 41
+group = 1
+candidate = 1
+strength = 0.8
+phase = 1.5707963
