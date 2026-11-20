@@ -1,0 +1,18 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: python3 tools/static_check.py
+      - run: python3 tools/check_configs.py
+      - run: node tools/viewer_smoke_test.js
+      - run: cargo build --release --all-targets
+      - run: cargo test --release
+      - run: cargo run --release -- batch --config configs/quick.toml --out out/quick
+      - uses: actions/upload-artifact@v4
+        with: { name: quick-results, path: out/quick }
