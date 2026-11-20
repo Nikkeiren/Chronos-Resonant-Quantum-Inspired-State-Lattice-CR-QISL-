@@ -563,6 +563,36 @@ pub fn run(cfg: &Config, record_trace: bool) -> Result<RunOutput, String> {
     m.insert("horizon".into(), horizon_f);
     m.insert("reference_tick".into(), reference as f64);
 
+    // Per-seed structural diagnostics: network groups gate communication;
+    // evidence groups determine which nodes receive candidate evidence.
+    let mut network_sizes = [0usize; 2];
+    let mut evidence_sizes = [0usize; 2];
+    let mut contingency = [[0usize; 2]; 2];
+    let mut overlap = 0usize;
+    for i in 0..n {
+        let ng = setup.groups[i] as usize;
+        let eg = setup.evidence_groups[i] as usize;
+        network_sizes[ng] += 1;
+        evidence_sizes[eg] += 1;
+        contingency[ng][eg] += 1;
+        if ng == eg { overlap += 1; }
+    }
+    let edges = setup.graph.edges();
+    let cross_edges = edges.iter().filter(|(a, b)| setup.groups[*a] != setup.groups[*b]).count();
+    let edge_count = edges.len();
+    m.insert("network_group0_size".into(), network_sizes[0] as f64);
+    m.insert("network_group1_size".into(), network_sizes[1] as f64);
+    m.insert("evidence_group0_size".into(), evidence_sizes[0] as f64);
+    m.insert("evidence_group1_size".into(), evidence_sizes[1] as f64);
+    m.insert("evidence_overlap_rate".into(), overlap as f64 / n.max(1) as f64);
+    m.insert("group_n00".into(), contingency[0][0] as f64);
+    m.insert("group_n01".into(), contingency[0][1] as f64);
+    m.insert("group_n10".into(), contingency[1][0] as f64);
+    m.insert("group_n11".into(), contingency[1][1] as f64);
+    m.insert("graph_edge_count".into(), edge_count as f64);
+    m.insert("cross_network_edge_count".into(), cross_edges as f64);
+    m.insert("network_cut_ratio".into(), if edge_count > 0 { cross_edges as f64 / edge_count as f64 } else { f64::NAN });
+
     // Agreement / convergence times measured from the reference tick (healing, or 0).
     match first_run_start(&agree_flags, reference, hold) {
         Some(s) => {
