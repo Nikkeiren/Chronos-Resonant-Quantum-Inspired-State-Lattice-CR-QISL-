@@ -534,6 +534,10 @@ mod tests {
             n.tick(&cfg, &feat, t);
         }
         assert_eq!(n.state, DecState::Stable);
+        // Clear the fresh neighbour cache so this test isolates local revocation
+        // behavior instead of allowing the cached consensus sample to restore
+        // the candidate-0 margin during the tick update.
+        n.cache[0] = None;
         n.amp = vec![0.5, 0.5];
         n.tick(&cfg, &feat, 30);
         assert_ne!(n.state, DecState::Stable);
