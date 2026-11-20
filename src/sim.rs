@@ -547,28 +547,8 @@ pub fn run(cfg: &Config, record_trace: bool) -> Result<RunOutput, String> {
     // at the healing reference tick (inclusive) and exclude ticks with NaN nodes.
     let spread_values = series.column("spread").map(|v| v.as_slice()).unwrap_or(&[]);
     let nan_values = series.column("nan_nodes").map(|v| v.as_slice()).unwrap_or(&[]);
-    let final_amplitude_spread = if nan_values.last().copied().unwrap_or(1.0) == 0.0 {
-        spread_values.last().copied().unwrap_or(f64::NAN)
-    } else {
-        f64::NAN
-    };
-    let post_heal_spreads: Vec<f64> = spread_values.iter().enumerate()
-        .filter(|(i, value)| *i >= reference && value.is_finite()
-            && nan_values.get(*i).copied().unwrap_or(1.0) == 0.0)
-        .map(|(_, value)| *value)
-        .collect();
-    let post_heal_amplitude_spread_mean = if post_heal_spreads.is_empty() {
-        f64::NAN
-    } else {
-        post_heal_spreads.iter().sum::<f64>() / post_heal_spreads.len() as f64
-    };
-    let post_heal_amplitude_spread_min = post_heal_spreads.iter().copied()
-        .fold(f64::INFINITY, f64::min);
-    let post_heal_amplitude_spread_min = if post_heal_spreads.is_empty() {
-        f64::NAN
-    } else {
-        post_heal_amplitude_spread_min
-    };
+    let (final_amplitude_spread, post_heal_amplitude_spread_mean, post_heal_amplitude_spread_min) =
+        amplitude_spread_diagnostics(spread_values, nan_values, reference);
 
     let mut m: BTreeMap<String, f64> = BTreeMap::new();
     let honest: Vec<&Node> = nodes.iter().filter(|x| x.adversary.is_none()).collect();
@@ -760,4 +740,21 @@ pub fn trace_json(cfg: &Config, out: &RunOutput) -> Option<serde_json::Value> {
         "series": out.series.to_json(),
         "events": events
     }))
+}
+
+#[cfg(test)]
+mod amplitude_diagnostic_tests {
+    use super::*;
+    #[test]
+    fn filters_nan_ticks_and_respects_reference_tick() {
+        let (f, mean, min) = amplitude_spread_diagnostics(&[0.1, 0.4, 0.2, 0.3], &[0.0, 1.0, 0.0, 0.0], 2);
+        assert!((f - 0.3).abs() < 1e-12);
+        assert!((mean - 0.25).abs() < 1e-12);
+        assert!((min - 0.2).abs() < 1e-12);
+    }
+    #[test]
+    fn empty_valid_window_returns_nan_for_aggregate_metrics() {
+        let (_, mean, min) = amplitude_spread_diagnostics(&[0.2, 0.3], &[1.0, 1.0], 1);
+        assert!(mean.is_nan() && min.is_nan());
+    }
 }
