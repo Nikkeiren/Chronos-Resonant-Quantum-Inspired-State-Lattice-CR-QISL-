@@ -36,3 +36,20 @@ Per-tick series (`series/*.csv`): tick, partition flag, undecided/tentative/conf
 `coherence_k` (|Σ a e^{iθ}| / Σ a), amplitude spread, divergence, agree flag, cumulative message counters, NaN nodes.
 Per-node histories (`traces/*.json`): amplitude, phase, decision state and decided candidate per node and frame.
 Network/decision event history: `events/*.csv`.
+
+
+## Per-run structural diagnostics
+
+The following columns are repeated in each variant row for the same seed because they describe the shared setup, not variant-specific behavior:
+
+| Column | Definition |
+|---|---|
+| `network_group0_size`, `network_group1_size` | Number of nodes assigned to each communication-partition group. |
+| `evidence_group0_size`, `evidence_group1_size` | Number of nodes assigned to each evidence-recipient group. |
+| `evidence_overlap_rate` | Fraction of nodes whose evidence-group label equals their network-group label. |
+| `group_n00`, `group_n01`, `group_n10`, `group_n11` | 2×2 contingency counts; first digit is network group, second digit is evidence group. |
+| `graph_edge_count` | Number of undirected graph edges. |
+| `cross_network_edge_count` | Number of graph edges whose endpoints have different network-group labels. |
+| `network_cut_ratio` | Cross-network-group edges divided by all graph edges; NaN if the graph has no edges. |
+
+These values allow topology/evidence-placement diagnostics for every seed without requiring a per-node trace. They are structural descriptors, not protocol outcome metrics.
