@@ -547,7 +547,11 @@ pub fn run(cfg: &Config, record_trace: bool) -> Result<RunOutput, String> {
     // at the healing reference tick (inclusive) and exclude ticks with NaN nodes.
     let spread_values = series.column("spread").map(|v| v.as_slice()).unwrap_or(&[]);
     let nan_values = series.column("nan_nodes").map(|v| v.as_slice()).unwrap_or(&[]);
-    let final_amplitude_spread = spread_values.last().copied().unwrap_or(f64::NAN);
+    let final_amplitude_spread = if nan_values.last().copied().unwrap_or(1.0) == 0.0 {
+        spread_values.last().copied().unwrap_or(f64::NAN)
+    } else {
+        f64::NAN
+    };
     let post_heal_spreads: Vec<f64> = spread_values.iter().enumerate()
         .filter(|(i, value)| *i >= reference && value.is_finite()
             && nan_values.get(*i).copied().unwrap_or(1.0) == 0.0)
