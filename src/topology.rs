@@ -223,6 +223,7 @@ pub fn partition_groups(g: &Graph, mode: &str, fraction: f64, rng: &mut Rng) -> 
             rng.shuffle(&mut v);
             v
         }
+        "bfs_random_root" => g.bfs_order(rng.below(n)),
         "index" => (0..n).collect(),
         _ => g.bfs_order(0),
     };
@@ -270,6 +271,15 @@ mod tests {
     }
 
     #[test]
+    fn randomized_bfs_root_is_deterministic_and_balanced() {
+        let g = build(&cfg("small_world"), 100, &mut Rng::new(23)).unwrap();
+        let a = partition_groups(&g, "bfs_random_root", 0.5, &mut Rng::new(77));
+        let b = partition_groups(&g, "bfs_random_root", 0.5, &mut Rng::new(77));
+        assert_eq!(a, b);
+        assert_eq!(a.iter().filter(|&&x| x == 0).count(), 50);
+    }
+
+    #[test]
     fn deterministic_for_same_seed() {
         let c = cfg("small_world");
         let a = build(&c, 80, &mut Rng::new(11)).unwrap();
@@ -290,7 +300,7 @@ mod tests {
     #[test]
     fn partition_group_sizes() {
         let g = build(&cfg("small_world"), 100, &mut Rng::new(2)).unwrap();
-        for mode in ["bfs", "random", "index"] {
+        for mode in ["bfs", "random", "bfs_random_root", "index"] {
             let groups = partition_groups(&g, mode, 0.65, &mut Rng::new(3));
             assert_eq!(groups.iter().filter(|&&x| x == 0).count(), 65);
         }
