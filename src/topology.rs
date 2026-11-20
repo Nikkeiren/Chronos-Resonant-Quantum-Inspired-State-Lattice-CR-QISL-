@@ -1,4 +1,5 @@
 //! Graph topology generation and partition-group assignment.
+//! `bfs_random_root` is a randomized-root BFS control, not an unconstrained random partition.
 
 use crate::config::TopologyConfig;
 use crate::rng::Rng;
