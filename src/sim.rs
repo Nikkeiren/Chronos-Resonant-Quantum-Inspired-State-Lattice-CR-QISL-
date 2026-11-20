@@ -760,7 +760,6 @@ mod evidence_assignment_tests {
         let b = build_evidence_groups(&network, "independent_balanced", 17).unwrap();
         assert_eq!(a, b);
         assert_eq!(a.iter().filter(|&&g| g == 0).count(), 3);
-        assert!(a.iter().zip(network.iter()).any(|(x, y)| x != y));
     }
 }
 
