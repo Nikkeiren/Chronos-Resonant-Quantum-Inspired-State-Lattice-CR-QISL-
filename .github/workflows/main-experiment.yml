@@ -1,0 +1,64 @@
+name: main-experiment
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cr-qisl-main-experiment
+  cancel-in-progress: false
+
+jobs:
+  run-main-experiment:
+    name: Run 120 main experiment jobs
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install stable Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Record environment
+        run: |
+          rustc --version
+          cargo --version
+          python3 --version
+          git rev-parse HEAD
+
+      - name: Build and run the predefined main experiment
+        run: |
+          cargo run --release -- batch --config configs/initial_experiment.toml --out out/initial
+
+      - name: Summarize run manifest
+        if: always()
+        run: |
+          if [ -f out/initial/manifest.json ]; then
+            python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          manifest = json.loads(Path("out/initial/manifest.json").read_text())
+          print(f"Experiment: {manifest.get('experiment')}")
+          print(f"Runs recorded: {manifest.get('runs')}")
+          print(f"Failed runs: {manifest.get('failed_runs')}")
+          print(f"Config hash: {manifest.get('config_hash')}")
+          if manifest.get("runs") != 120:
+              raise SystemExit("Expected 120 run records; inspect the artifact.")
+          PY
+          else
+            echo "No manifest was produced. Check the build/run logs."
+          fi
+
+      - name: Upload complete experiment outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cr-qisl-main-experiment-${{ github.run_number }}
+          path: out/initial/
+          if-no-files-found: warn
+          retention-days: 30
