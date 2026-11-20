@@ -1,0 +1,61 @@
+name: Cut-Controlled Evidence Placement Follow-up
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cut-control:
+    name: ${{ matrix.condition }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - condition: FIXED_BFS_ALIGNED
+            config: configs/cut_control_fixed_bfs_aligned.toml
+          - condition: FIXED_BFS_REVERSED
+            config: configs/cut_control_fixed_bfs_reversed.toml
+          - condition: FIXED_BFS_INDEPENDENT_BALANCED
+            config: configs/cut_control_fixed_bfs_independent_balanced.toml
+          - condition: RANDOM_ROOT_BFS_ALIGNED
+            config: configs/cut_control_random_root_bfs_aligned.toml
+          - condition: RANDOM_ROOT_BFS_REVERSED
+            config: configs/cut_control_random_root_bfs_reversed.toml
+          - condition: RANDOM_ROOT_BFS_INDEPENDENT_BALANCED
+            config: configs/cut_control_random_root_bfs_independent_balanced.toml
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install stable Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run unit tests
+        run: cargo test --all-targets
+
+      - name: Validate configuration
+        run: cargo run --release -- validate --config "${{ matrix.config }}"
+
+      - name: Run 100-seed cut-control batch
+        run: |
+          cargo run --release -- batch \
+            --config "${{ matrix.config }}" \
+            --out "out/cut-control/${{ matrix.condition }}" \
+            --seeds 100 \
+            --seed-start 2001 \
+            --variants weighted_gossip,weighted_gossip_damping,phase_ablation,full_cr_qisl
+
+      - name: Upload cut-control outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: cut-control-${{ matrix.condition }}
+          path: out/cut-control/${{ matrix.condition }}/
+          if-no-files-found: error
+          retention-days: 90
