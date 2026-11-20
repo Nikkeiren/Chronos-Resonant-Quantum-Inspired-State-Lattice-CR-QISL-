@@ -1,7 +1,7 @@
 # Independent evidence-recipient experiment — protocol
 
 Date: 2026-11-20
-Status: design specification; implementation and results pending.
+Status: initial implementation committed; CI validation and experiment results pending.
 
 ## Motivation
 
