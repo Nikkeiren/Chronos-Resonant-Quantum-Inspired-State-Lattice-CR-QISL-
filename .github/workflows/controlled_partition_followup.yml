@@ -1,0 +1,54 @@
+name: Controlled Partition Follow-up
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  controlled-partition:
+    name: ${{ matrix.condition }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - condition: P50-BFS
+            config: configs/controlled_partition_p50_bfs.toml
+          - condition: P50-RANDOM
+            config: configs/controlled_partition_p50_random.toml
+          - condition: P80-BFS
+            config: configs/controlled_partition_p80_bfs.toml
+          - condition: P80-RANDOM
+            config: configs/controlled_partition_p80_random.toml
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install stable Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Validate configuration
+        run: cargo run --release -- validate --config "${{ matrix.config }}"
+
+      - name: Run paired-seed batch
+        run: |
+          cargo run --release -- batch \
+            --config "${{ matrix.config }}" \
+            --out "out/${{ matrix.condition }}" \
+            --seeds 30 \
+            --seed-start 1 \
+            --variants weighted_gossip,weighted_gossip_damping,phase_ablation,full_cr_qisl
+
+      - name: Upload experiment outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: controlled-partition-${{ matrix.condition }}
+          path: out/${{ matrix.condition }}/
+          if-no-files-found: error
+          retention-days: 30
