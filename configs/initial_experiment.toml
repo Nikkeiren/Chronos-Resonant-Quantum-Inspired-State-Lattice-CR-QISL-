@@ -1,0 +1,131 @@
+# CR-QISL initial experiment (explicit copy of the built-in defaults).
+# n = 100, 2 competing states, 30 seeds, 20% packet loss, asynchronous latency,
+# partition at tick 60, healing at tick 140, horizon 300 ticks.
+#
+# Parameters tagged [ASSUMPTION] are operational assumptions, NOT CR-QISL mathematics.
+# See docs/ASSUMPTIONS.md for what each one means and how it can bias outcomes.
+
+name = "initial_experiment"
+nodes = 100
+candidates = 2
+max_ticks = 300
+seed = 1                      # used by `crqisl run`; batches use batch.seed_start..+seeds
+variant = "full_cr_qisl"      # used by `crqisl run`; batches use batch.variants
+
+[topology]
+kind = "small_world"          # ring | erdos_renyi | small_world | scale_free | grid | complete
+k = 6
+p = 0.1                       # rewiring probability (small_world) / edge probability (erdos_renyi)
+m = 3                         # attachment count (scale_free)
+ensure_connected = true
+
+[model]
+alpha = 0.5                   # [ASSUMPTION A5] damping: step is scaled by (1 - alpha)
+beta = 0.5                    # [ASSUMPTION A3] resonance / phase coupling
+rate = 0.5                    # [ASSUMPTION A4] base gossip step size
+omega = 0.0                   # [ASSUMPTION A7] intrinsic phase rotation per tick (0 = off)
+age_compensation = false      # [ASSUMPTION A7]
+
+[initial]
+amplitude_mode = "uniform"    # uniform | random_bias | partition_aligned | fixed
+amplitude_noise = 0.02
+bias_strength = 0.3
+amplitudes = []
+phase_mode = "zero"           # zero | random | candidate_offset | fixed
+phases = []
+
+[network]
+packet_loss = 0.2
+latency_kind = "uniform"      # fixed | uniform | exponential
+latency_min = 1.0
+latency_max = 5.0
+latency_mean_extra = 2.0
+latency_cap = 50
+asymmetry = 1.0               # latency multiplier for the high-id -> low-id direction
+partition_enabled = true
+partition_start = 60
+partition_end = 140           # healing tick
+partition_mode = "bfs"        # bfs | random | index
+partition_fraction = 0.7      # share of nodes in group 0 (larger side carries more evidence mass)
+
+[communication]
+heartbeat_period = 10
+amplitude_threshold = 0.005   # delta gating
+phase_threshold = 0.05
+cache_ttl = 30
+validate_inputs = true
+
+[decision]
+tentative_margin = 0.04
+stable_margin = 0.08
+exit_margin = 0.04
+stable_window = 12
+stable_eps = 0.01
+
+[integrity]
+eta = 0.1                     # [ASSUMPTION A6]
+kappa = 8.0
+min_weight = 0.05
+phase_gamma = 0.5
+
+[conflict]
+witness_ttl = 8
+witness_cooldown = 10
+reconcile_period = 5
+reconcile_rate_boost = 1.5    # [ASSUMPTION R2]
+reconcile_min_ticks = 10      # [ASSUMPTION R1]
+reconcile_hold = 8
+reconcile_timeout = 80
+
+[adversary]
+fraction = 0.0
+behavior = "none"             # none | amplitude | phase | invalid
+placement = "random"          # random | clustered
+target_candidate = 1
+forged_amplitude = 0.95
+start_tick = 0
+end_tick = 0                  # 0 = until the end
+period = 1
+claim_decision = false
+
+[features]                    # auto = follow the variant preset
+damping = "auto"
+phase = "auto"
+integrity = "auto"
+witness = "auto"
+reconcile = "auto"
+
+[metrics]
+convergence_eps = 0.02
+hold_ticks = 10
+quorum_fraction = 0.9         # secondary 'quorum agreement' metric (observer-level)
+
+[telemetry]
+history_stride = 1
+max_events = 200000
+per_node_history = false
+
+[batch]
+seeds = 30
+seed_start = 1
+variants = ["weighted_gossip", "weighted_gossip_damping", "phase_ablation", "full_cr_qisl"]
+threads = 0                   # 0 = all cores
+trace_seeds = []              # empty = first seed only
+
+# [ASSUMPTION A8] Competing evidence: right after the partition starts, each side receives
+# evidence for a different candidate. Phase tag only matters when the phase feature is on.
+[[events]]
+kind = "inject"
+tick = 61
+group = 0
+candidate = 0
+strength = 0.8
+phase = 0.0
+
+[[events]]
+kind = "inject"
+tick = 61
+group = 1
+candidate = 1
+strength = 0.8
+phase = 1.5707963
