@@ -1,0 +1,47 @@
+name: robustness-experiment-3
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cr-qisl-robustness-experiment-3
+  cancel-in-progress: false
+
+jobs:
+  robustness:
+    name: Robustness condition batch
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - robustness_loss10.toml
+          - robustness_loss30.toml
+          - robustness_latency10.toml
+          - robustness_partition50.toml
+          - robustness_partition80.toml
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Install stable Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Record environment
+        run: |
+          rustc --version
+          cargo --version
+          git rev-parse HEAD
+      - name: Run robustness condition
+        run: |
+          cargo run --release -- batch --config configs/${{ matrix.config }} --out out/${{ matrix.config }} --seeds 30 --seed-start 1
+      - name: Upload condition results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cr-qisl-e3-${{ matrix.config }}
+          path: out/${{ matrix.config }}/
+          if-no-files-found: warn
+          retention-days: 30
