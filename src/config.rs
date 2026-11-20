@@ -451,7 +451,7 @@ pub struct EventConfig {
     /// Currently only "inject".
     pub kind: String,
     pub tick: u64,
-    /// Partition group receiving the evidence; -1 = all nodes.
+    /// Evidence-recipient group receiving the injection; -1 = all honest nodes.
     pub group: i64,
     pub candidate: usize,
     /// amplitude <- (1 - strength) * amplitude + strength * onehot(candidate)
