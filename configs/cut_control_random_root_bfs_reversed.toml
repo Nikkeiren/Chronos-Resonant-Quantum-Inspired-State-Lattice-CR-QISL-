@@ -1,0 +1,51 @@
+evidence_assignment_mode = "reversed"
+name = "cut_control_random_root_bfs_reversed"
+nodes = 100
+candidates = 2
+max_ticks = 300
+seed = 2001
+variant = "full_cr_qisl"
+
+[topology]
+kind = "small_world"
+k = 6
+p = 0.1
+m = 3
+ensure_connected = true
+
+[network]
+partition_mode = "bfs_random_root"
+partition_fraction = 0.5
+packet_loss = 0.2
+latency_kind = "uniform"
+latency_min = 1.0
+latency_max = 5.0
+latency_mean_extra = 2.0
+latency_cap = 50
+asymmetry = 1.0
+partition_enabled = true
+partition_start = 60
+partition_end = 140
+
+[batch]
+seeds = 100
+seed_start = 2001
+variants = ["weighted_gossip", "weighted_gossip_damping", "phase_ablation", "full_cr_qisl"]
+threads = 0
+trace_seeds = [2001, 2025, 2050, 2075, 2100]
+
+[[events]]
+kind = "inject"
+tick = 61
+group = 0
+candidate = 0
+strength = 0.8
+phase = 0.0
+
+[[events]]
+kind = "inject"
+tick = 61
+group = 1
+candidate = 1
+strength = 0.8
+phase = 1.5707963
