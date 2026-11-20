@@ -707,7 +707,7 @@ impl Config {
                 e.push("network.partition_fraction must be in (0,1)".into());
             }
             match n.partition_mode.as_str() {
-                "bfs" | "random" | "index" => {}
+                "bfs" | "random" | "bfs_random_root" | "index" => {}
                 other => e.push(format!("unknown network.partition_mode '{}'", other)),
             }
         }
