@@ -486,6 +486,8 @@ pub struct Config {
     pub model: ModelConfig,
     pub initial: InitialConfig,
     pub network: NetworkConfig,
+    /// "aligned" | "reversed" | "independent_balanced"; evidence recipients are separate from network partitions.
+    pub evidence_assignment_mode: String,
     pub communication: CommConfig,
     pub decision: DecisionConfig,
     pub integrity: IntegrityConfig,
@@ -512,6 +514,7 @@ impl Default for Config {
             model: ModelConfig::default(),
             initial: InitialConfig::default(),
             network: NetworkConfig::default(),
+            evidence_assignment_mode: "aligned".into(),
             communication: CommConfig::default(),
             decision: DecisionConfig::default(),
             integrity: IntegrityConfig::default(),
@@ -707,6 +710,10 @@ impl Config {
                 "bfs" | "random" | "index" => {}
                 other => e.push(format!("unknown network.partition_mode '{}'", other)),
             }
+        }
+        match self.evidence_assignment_mode.as_str() {
+            "aligned" | "reversed" | "independent_balanced" => {}
+            other => e.push(format!("unknown evidence_assignment_mode '{}'", other)),
         }
         // communication
         let c = &self.communication;
