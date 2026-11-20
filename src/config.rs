@@ -194,7 +194,7 @@ pub struct NetworkConfig {
     pub partition_enabled: bool,
     pub partition_start: u64,
     pub partition_end: u64,
-    /// "bfs" | "random" | "index"
+    /// "bfs" | "random" | "bfs_random_root" | "index"
     pub partition_mode: String,
     /// Fraction of nodes in group 0 (the larger side carries more evidence mass).
     pub partition_fraction: f64,
