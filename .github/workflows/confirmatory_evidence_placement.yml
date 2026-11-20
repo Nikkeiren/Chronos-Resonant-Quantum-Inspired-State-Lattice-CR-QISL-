@@ -1,0 +1,61 @@
+name: Confirmatory Evidence Placement Replication
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  confirmatory-evidence:
+    name: ${{ matrix.condition }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - condition: BFS-ALIGNED
+            config: configs/confirmatory_evidence_bfs_aligned.toml
+          - condition: BFS-REVERSED
+            config: configs/confirmatory_evidence_bfs_reversed.toml
+          - condition: BFS-INDEPENDENT-BALANCED
+            config: configs/confirmatory_evidence_bfs_independent_balanced.toml
+          - condition: RANDOM-ALIGNED
+            config: configs/confirmatory_evidence_random_aligned.toml
+          - condition: RANDOM-REVERSED
+            config: configs/confirmatory_evidence_random_reversed.toml
+          - condition: RANDOM-INDEPENDENT-BALANCED
+            config: configs/confirmatory_evidence_random_independent_balanced.toml
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install stable Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run unit tests
+        run: cargo test --all-targets
+
+      - name: Validate configuration
+        run: cargo run --release -- validate --config "${{ matrix.config }}"
+
+      - name: Run 100-seed confirmatory batch
+        run: |
+          cargo run --release -- batch \
+            --config "${{ matrix.config }}" \
+            --out "out/confirmatory/${{ matrix.condition }}" \
+            --seeds 100 \
+            --seed-start 1001 \
+            --variants weighted_gossip,weighted_gossip_damping,phase_ablation,full_cr_qisl
+
+      - name: Upload confirmatory outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: confirmatory-evidence-${{ matrix.condition }}
+          path: out/confirmatory/${{ matrix.condition }}/
+          if-no-files-found: error
+          retention-days: 90
