@@ -15,6 +15,11 @@ and takes a *local* stability decision.
 > listed in [`docs/ASSUMPTIONS.md`](docs/ASSUMPTIONS.md), configurable, and kept in one replaceable place
 > (`src/model.rs`). Results are properties of **this** simulator under **these** assumptions.
 
+
+## Getting started
+
+See [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) for running CI and the 120-run main experiment, downloading artifacts, reading analysis outputs, and opening the interactive viewer.
+
 ## Contents
 
 | Path | What |
