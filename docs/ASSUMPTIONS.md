@@ -1,0 +1,38 @@
+# Implementation assumptions (not CR-QISL mathematics)
+
+The CR-QISL specification v0.1.0–v0.1.2 was not available to this implementation as an explicit set of equations.
+Nothing below should be read as "the CR-QISL equation". Each entry names the missing definition, the operational
+choice, where it lives, how to change it, and how it may bias results. To adopt the real equations, replace
+`step_state`, `integrity_targets`, `l1_normalize` in `src/model.rs` (and the decision rule in `src/node.rs`); the rest
+of the engine depends only on their signatures.
+
+Notation: node *i*, candidate *k*, complex amplitude ψ_ik = a_ik·e^{iθ_ik}, a ≥ 0, Σ_k a_ik = 1.
+
+| ID | Missing definition | Chosen assumption | Code / config | Possible influence on outcomes |
+|---|---|---|---|---|
+| A0 | The equation set itself | Everything below | `src/model.rs` | All results are conditional on A1–A15. |
+| A1 | Complex aggregation | Weighted complex mean of *fresh* neighbour states N_k = Σ w_j ψ_jk / Σ w_j (self excluded; weight 1 unless integrity is on; fresh = received ≤ `cache_ttl` ticks ago) | `model::step_state`, `communication.cache_ttl` | Short TTL makes nodes forget the other side during a partition; long TTL keeps stale evidence alive and slows divergence. |
+| A2 | Normalisation | Amplitude = \|ψ\|; per-node L1 normalisation a_k ← a_k / Σ a_j. A degenerate/non-finite sum resets to uniform only when `validate_inputs` is on (otherwise corruption is left visible) | `model::l1_normalize` | Normalisation hides the absolute amplitude loss caused by destructive interference; only *relative* support survives. |
+| A3 | Resonance / phase interaction | Target magnitude r_k = (1−β)·(weighted mean amplitude) + β·\|N_k\|, target phase arg N_k: aligned phases reinforce, opposed phases cancel | `model.beta` | β = 0 ⇒ phases never influence amplitudes, so Full ≡ Phase Ablation in decisions (only traffic differs). Large β amplifies phase-coherent candidates and suppresses incoherent ones. |
+| A4 | Gossip step | ψ ← ψ + ε(T − ψ) with ε = `model.rate` | `model.rate` | Larger ε mixes faster but washes out local evidence; interacts with delta gating. |
+| A5 | Damping | The step is scaled by (1 − α); variant A has no damping, B–D use α | `model.alpha` | Damping alone changes A vs B substantially (it preserves injected evidence and slows reconvergence). Do not attribute A–B differences to phase or integrity. |
+| A6 | Integrity-weight adjustment | w_ij ← (1−η)w_ij + η·exp(−κ·d_ij) clipped to [w_min,1], d_ij = ½Σ\|a_jk − med_k\| (+ γ·phase deviation to the circular medoid) against the median of {neighbours, own state} | `integrity.*`, `model::integrity_targets` | Outlier heuristic: penalises honest-but-divergent neighbours (e.g. across a healed cut) and is defeated by a local adversarial majority. No protection guarantee. |
+| A7 | Chronos (time) term | Optional intrinsic rotation θ ← θ + ω per tick and age compensation of cached phases; **off by default** | `model.omega`, `model.age_compensation` | With ω ≠ 0 latency creates phase lag between nodes; compensation removes it only if clocks/ticks are shared. |
+| A8 | How competing states arise | Scheduled evidence: a ← (1−s)a + s·onehot(c) for a partition group at a tick, optionally tagging the injected candidate's phase | `[[events]]` | The larger partition side carries more evidence mass and therefore tends to win after healing (`partition_fraction`). With phase tags equal to 0 the phase feature has nothing to act on. |
+| A9 | Message size | 12-byte header + 1 decision byte + 8 bytes per candidate (f32 amplitude + f32 phase); witness 23 bytes | `network::message_size` | Absolute byte counts are model-dependent; ratios between variants are more meaningful. |
+| A10 | Local stability decision | Tentative if margin ≥ `tentative_margin`; Stable after `stable_window` consecutive ticks with margin ≥ `stable_margin`, unchanged dominant candidate and max\|Δa\| ≤ `stable_eps`; revoked when margin < `exit_margin` or the dominant candidate changes | `decision.*`, `node::update_decision` | Thresholds directly set stability time, oscillation and the fraction of nodes that ever decide. Stable is local, not safe finality. |
+| A11 | Initial state | Uniform amplitudes + Gaussian noise; phases all 0 (other modes selectable) | `initial.*` | Random phases make the Full variant frustrated and slow to converge in prototype runs (phases lock into different neighbourhood patterns). |
+| A12 | Communication policy | Initial transmission at tick 0; delta gating on amplitude (and phase when phase is on); a decision change forces transmission; heartbeat only when nothing was sent for `heartbeat_period` ticks; same policy for all variants | `communication.*`, `node::tick` | Gating can stall propagation of differences below the threshold until the next heartbeat. |
+| A13 | Network | Tick-based, minimum latency 1, per-message independent loss; asymmetry multiplies the high→low id direction; partition drops messages at send time *and* in-flight messages at delivery; no retransmission, no authentication | `network.*` | Loss/latency draws are keyed by (seed, link, tick, salt); variants that send more messages are still exposed to identical draws on shared links. |
+| A14 | Adversaries | Amplitude: forges `forged_amplitude` for the target candidate. Phase: *omniscient* — reports the honest mean amplitude with the opposite phase. Invalid: cycles NaN / ∞ / negative / non-normalised / NaN-phase. Optional `claim_decision`. Adversaries ignore all messages, never decide, and are excluded from honest-node metrics | `adversary.*`, `sim::forged_message` | The phase attacker only matters where phases matter. `claim_decision` exposes the unauthenticated witness mechanism. |
+| A15 | "Weighted Gossip" baseline | Cache-based weighted neighbour averaging (not push-sum / Bénézit et al.); not mass-conserving under loss and latency | `Variant::WeightedGossip` | Baseline may drift away from the true average under loss; compare cautiously with literature. |
+| R1 | Conflict witness | A Stable node that sees a fresh neighbour advertising a *different* Stable decision creates a witness and enters `CONFLICT_PENDING`; witnesses are flooded with TTL, de-duplicated by (origin, id); receivers that are Stable on one of the two candidates become conflicted | `conflict.*`, `node::on_witness` | Witnesses are unauthenticated and can be forged (not modelled as an attack by default); flooding cost grows with density. |
+| R2 | Reconciliation | While conflicted: periodic full-state `Reconcile` messages, step boosted by `reconcile_rate_boost`, release to TENTATIVE when the node's own dominant candidate has margin ≥ `stable_margin` for `reconcile_hold` ticks after `reconcile_min_ticks` and no fresh neighbour advertises a different Stable decision. A decision is **never forced**; a timeout is only logged | `conflict.*`, `node::try_release` | A conflicted node may stay pending until the horizon; this is reported (`conflict_pending_final`, `reconcile_timeouts`), not repaired. |
+| M1 | Metric definitions | See `docs/METRICS.md` (observer-level agreement, divergence = minority share among Stable nodes, windows relative to partition/healing) | `metrics.*`, `sim::run` | Strict all-node agreement is demanding; the secondary quorum metric is provided. |
+
+## Defaults chosen for a non-degenerate initial experiment
+
+`partition_fraction = 0.7`, evidence strength 0.8, `amplitude_threshold = 0.005` were chosen after prototyping so that
+(i) the two sides decide differently during the partition and (ii) the post-healing margin of the majority candidate
+is above the stable margin. They were **not** derived from the specification and may be changed freely; changing them
+changes results.
