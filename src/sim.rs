@@ -702,6 +702,19 @@ fn r4(x: f64) -> f64 {
     }
 }
 
+/// Computes continuous amplitude-spread diagnostics from aligned tick arrays.
+fn amplitude_spread_diagnostics(spread: &[f64], nan_nodes: &[f64], reference: usize) -> (f64, f64, f64) {
+    let final_spread = if nan_nodes.last().copied().unwrap_or(1.0) == 0.0 {
+        spread.last().copied().unwrap_or(f64::NAN)
+    } else { f64::NAN };
+    let valid: Vec<f64> = spread.iter().enumerate()
+        .filter(|(i, x)| *i >= reference && x.is_finite() && nan_nodes.get(*i).copied().unwrap_or(1.0) == 0.0)
+        .map(|(_, x)| *x).collect();
+    if valid.is_empty() { return (final_spread, f64::NAN, f64::NAN); }
+    (final_spread, valid.iter().sum::<f64>() / valid.len() as f64,
+     valid.iter().copied().fold(f64::INFINITY, f64::min))
+}
+
 /// Trace document consumed by `viewer/index.html` (schema `crqisl-trace/1`).
 pub fn trace_json(cfg: &Config, out: &RunOutput) -> Option<serde_json::Value> {
     let tr = out.trace.as_ref()?;
