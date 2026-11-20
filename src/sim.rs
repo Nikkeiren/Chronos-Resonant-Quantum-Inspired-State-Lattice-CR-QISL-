@@ -26,7 +26,10 @@ use std::f64::consts::PI;
 #[derive(Clone, Debug)]
 pub struct Setup {
     pub graph: Graph,
+    /// Network partition labels; used exclusively for communication gating.
     pub groups: Vec<u8>,
+    /// Evidence recipient labels; used exclusively for scheduled evidence injection.
+    pub evidence_groups: Vec<u8>,
     pub adversaries: Vec<Option<AdvKind>>,
     pub init_amp: Vec<Vec<f64>>,
     pub init_phase: Vec<Vec<f64>>,
@@ -39,6 +42,7 @@ impl Setup {
         let kf = k as f64;
         let graph = topology::build(&cfg.topology, n, &mut Rng::stream(cfg.seed, 1))?;
         let groups = topology::partition_groups(&graph, &cfg.network.partition_mode, cfg.network.partition_fraction, &mut Rng::stream(cfg.seed, 2));
+        let evidence_groups = build_evidence_groups(&groups, &cfg.evidence_assignment_mode, cfg.seed)?;
 
         let mut adversaries: Vec<Option<AdvKind>> = vec![None; n];
         let count = (cfg.adversary.fraction * n as f64).round() as usize;
@@ -110,6 +114,7 @@ impl Setup {
         Ok(Setup {
             graph,
             groups,
+            evidence_groups,
             adversaries,
             init_amp,
             init_phase,
@@ -409,7 +414,7 @@ pub fn run(cfg: &Config, record_trace: bool) -> Result<RunOutput, String> {
                 if nodes[i].adversary.is_some() {
                     continue;
                 }
-                if ev.group >= 0 && setup.groups[i] as i64 != ev.group {
+                if ev.group >= 0 && setup.evidence_groups[i] as i64 != ev.group {
                     continue;
                 }
                 let nd = &mut nodes[i];
@@ -715,6 +720,50 @@ fn amplitude_spread_diagnostics(spread: &[f64], nan_nodes: &[f64], reference: us
      valid.iter().copied().fold(f64::INFINITY, f64::min))
 }
 
+/// Build evidence-recipient labels independently of network partition labels when requested.
+fn build_evidence_groups(network_groups: &[u8], mode: &str, seed: u64) -> Result<Vec<u8>, String> {
+    match mode {
+        "aligned" => Ok(network_groups.to_vec()),
+        "reversed" => Ok(network_groups.iter().map(|g| 1u8.saturating_sub(*g)).collect()),
+        "independent_balanced" => {
+            let n = network_groups.len();
+            if n < 2 { return Err("independent_balanced evidence assignment requires at least two nodes".into()); }
+            let size0 = network_groups.iter().filter(|&&g| g == 0).count();
+            if size0 == 0 || size0 == n {
+                return Err("network groups must both be non-empty for independent_balanced evidence assignment".into());
+            }
+            let mut order: Vec<usize> = (0..n).collect();
+            Rng::stream(seed, 6).shuffle(&mut order);
+            let mut labels = vec![1u8; n];
+            for &idx in order.iter().take(size0) { labels[idx] = 0; }
+            Ok(labels)
+        }
+        other => Err(format!("unknown evidence_assignment_mode '{}'", other)),
+    }
+}
+
+#[cfg(test)]
+mod evidence_assignment_tests {
+    use super::*;
+
+    #[test]
+    fn aligned_and_reversed_assignments_are_exact() {
+        let network = vec![0, 0, 1, 1];
+        assert_eq!(build_evidence_groups(&network, "aligned", 7).unwrap(), network);
+        assert_eq!(build_evidence_groups(&network, "reversed", 7).unwrap(), vec![1, 1, 0, 0]);
+    }
+
+    #[test]
+    fn independent_assignment_is_deterministic_and_balanced() {
+        let network = vec![0, 0, 0, 1, 1, 1];
+        let a = build_evidence_groups(&network, "independent_balanced", 17).unwrap();
+        let b = build_evidence_groups(&network, "independent_balanced", 17).unwrap();
+        assert_eq!(a, b);
+        assert_eq!(a.iter().filter(|&&g| g == 0).count(), 3);
+        assert!(a.iter().zip(network.iter()).any(|(x, y)| x != y));
+    }
+}
+
 /// Trace document consumed by `viewer/index.html` (schema `crqisl-trace/1`).
 pub fn trace_json(cfg: &Config, out: &RunOutput) -> Option<serde_json::Value> {
     let tr = out.trace.as_ref()?;
@@ -747,7 +796,12 @@ pub fn trace_json(cfg: &Config, out: &RunOutput) -> Option<serde_json::Value> {
             "synthetic": false,
             "note": "Local stability is NOT global agreement or finality. Observer-level series only."
         },
-        "nodes": { "group": out.setup.groups, "adversary": adv },
+        "nodes": {
+            "group": out.setup.groups,
+            "network_group": out.setup.groups,
+            "evidence_group": out.setup.evidence_groups,
+            "adversary": adv
+        },
         "edges": edges,
         "frames": { "ticks": tr.ticks, "amp": amp, "phase": phase, "state": tr.state, "dec": tr.dec },
         "series": out.series.to_json(),
